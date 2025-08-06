@@ -44,6 +44,7 @@ class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
     items: list["Item"] = Relationship(back_populates="owner", cascade_delete=True)
+    books: list["Book"] = Relationship(back_populates="owner", cascade_delete=True)
 
 
 # Properties to return via API, id is always required
@@ -112,3 +113,45 @@ class TokenPayload(SQLModel):
 class NewPassword(SQLModel):
     token: str
     new_password: str = Field(min_length=8, max_length=40)
+
+
+class BookBase(SQLModel):
+    title: str = Field(min_length=1, max_length=255)
+    author: str
+    description: str | None = Field(default=None, max_length=255)
+    total_qtd: int = Field(default=1)
+
+
+# Properties to receive on item creation
+class BookCreate(BookBase):
+    pass
+
+
+# Properties to receive on item update
+class BookUpdate(BookBase):
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    author: str | None = Field(default=None)
+    total_qtd: int | None = Field(default=None)
+
+
+# Database model, database table inferred from class name
+class Book(BookBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    title: str = Field(max_length=255)
+    owner_id: uuid.UUID = Field(
+        foreign_key="user.id", nullable=False, ondelete="CASCADE"
+    )
+    available_qtd: int = Field(nullable=False)
+    owner: User | None = Relationship(back_populates="books")
+
+
+# Properties to return via API, id is always required
+class BookPublic(BookBase):
+    id: uuid.UUID
+    owner_id: uuid.UUID
+    available_qtd: int
+
+
+class BooksPublic(SQLModel):
+    data: list[BookPublic]
+    count: int

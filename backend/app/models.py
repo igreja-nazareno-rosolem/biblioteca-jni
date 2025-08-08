@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
@@ -45,6 +46,7 @@ class User(UserBase, table=True):
     hashed_password: str
     items: list["Item"] = Relationship(back_populates="owner", cascade_delete=True)
     books: list["Book"] = Relationship(back_populates="owner", cascade_delete=True)
+    loans: list["Loan"] = Relationship(back_populates="user", cascade_delete=True)
 
 
 # Properties to return via API, id is always required
@@ -143,6 +145,7 @@ class Book(BookBase, table=True):
     )
     available_qtd: int = Field(nullable=False)
     owner: User | None = Relationship(back_populates="books")
+    loans: list["Loan"] | None = Relationship(back_populates="book")
 
 
 # Properties to return via API, id is always required
@@ -154,4 +157,42 @@ class BookPublic(BookBase):
 
 class BooksPublic(SQLModel):
     data: list[BookPublic]
+    count: int
+
+
+class LoanBase(SQLModel):
+    pass
+
+
+class LoanCreate(LoanBase):
+    book_id: uuid.UUID = Field(
+        foreign_key="book.id", nullable=False, ondelete="CASCADE"
+    )
+
+
+class Loan(LoanBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    created_at: datetime = Field(default_factory=datetime.now, nullable=False)
+    closed_at: datetime | None = Field(default=None)
+    book_id: uuid.UUID = Field(
+        foreign_key="book.id", nullable=False, ondelete="CASCADE"
+    )
+    user_id: uuid.UUID = Field(
+        foreign_key="user.id", nullable=False, ondelete="CASCADE"
+    )
+    user: User = Relationship(back_populates="loans")
+    book: Book = Relationship(back_populates="loans")
+
+
+# Properties to return via API, id is always required
+class LoanPublic(LoanBase):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    book_id: uuid.UUID
+    created_at: datetime
+    closed_at: datetime | None
+
+
+class LoansPublic(SQLModel):
+    data: list[LoanPublic]
     count: int
